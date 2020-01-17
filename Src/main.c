@@ -20,11 +20,12 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "lsm6dsl_reg.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-
+#include <string.h>
+#include "lsm6dsl_reg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +44,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -54,11 +56,19 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
-
 /* USER CODE BEGIN PFP */
 //extern void lsm6dsl_free_fall_detection(void);
 extern uint8_t int1_flag;
-
+extern char data_out[256];
+extern stmdev_ctx_t dev_ctx;
+lsm6dsl_all_sources_t lsm6dsl_all_sources;
+void tx_com(uint8_t *tx_buffer, uint16_t len);
+static void exti2_config(void);
+static void SYSCLKConfig_STOP(void);
+void BSP_LED_Init(void);
+void power_3V3_ctr(void);
+void power_i2c_ctr(void);
+void power_232_ctr(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -73,7 +83,7 @@ extern uint8_t int1_flag;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	GPIO_InitTypeDef GPIO_InitStructure;
   /* USER CODE END 1 */
   
 
@@ -90,20 +100,33 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+	
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-	lsm6dsl_exti_config();
-	HAL_Delay(100);	//必须加这个延时
-  MX_USART1_UART_Init();
-	HAL_GPIO_WritePin(GPIOE, PE2_232_POWER_Pin|PE9_3V3_Pin|PE14_IIC_Power_Pin, GPIO_PIN_SET);
-	printf("Open the 232 and lsm6dsl power\r\n");
-	MX_I2C1_Init();
+//  MX_GPIO_Init();
+//  MX_I2C1_Init();
+//  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	lsm6dsl_free_fall_detection();
-//	example_main();
+	MX_GPIO_Init();
+//	lsm6dsl_exti_config();
+	HAL_Delay(10);
+
+  MX_USART1_UART_Init();
+	HAL_GPIO_WritePin(GPIOE, PE2_232_POWER_Pin|PE9_3V3_Pin|PE14_IIC_Power_Pin, GPIO_PIN_SET); //在打开I2C电源和I2C初始化之间必须有延时
+	printf("Open the 232 and lsm6dsl power\r\n");
+	HAL_Delay(10);
+	MX_I2C1_Init();
+	
+	example_main();
+//	lsm6dsl_free_fall_detection();
+	/* (External line 2) will be used to wakeup the system from STOP mode */
+	exti2_config();
+	/* Enable Power Clock */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  
+  /* Ensure that MSI is wake-up system clock */ 
+  __HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_MSI);
   /* USER CODE END 2 */
  
  
@@ -115,8 +138,56 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		/* Insert 5 second delay */
+    HAL_Delay(5000);
+		__HAL_RCC_GPIOA_CLK_ENABLE();
+		__HAL_RCC_GPIOB_CLK_ENABLE();
+		__HAL_RCC_GPIOD_CLK_ENABLE();
+		__HAL_RCC_GPIOE_CLK_ENABLE(); 
+		__HAL_RCC_GPIOH_CLK_ENABLE();
+		
+		GPIO_InitStructure.Pin = GPIO_PIN_All;
+		GPIO_InitStructure.Mode = GPIO_MODE_ANALOG;
+		GPIO_InitStructure.Pull = GPIO_NOPULL;
+
+		HAL_GPIO_Init(GPIOA, &GPIO_InitStructure); 
+		HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+		HAL_GPIO_Init(GPIOD, &GPIO_InitStructure); 
+		HAL_GPIO_Init(GPIOE, &GPIO_InitStructure);
+		HAL_GPIO_Init(GPIOH, &GPIO_InitStructure);
+		__HAL_RCC_GPIOA_CLK_DISABLE();
+		__HAL_RCC_GPIOB_CLK_DISABLE();
+		__HAL_RCC_GPIOD_CLK_DISABLE();
+		__HAL_RCC_GPIOE_CLK_DISABLE();
+		__HAL_RCC_GPIOH_CLK_DISABLE();
+		
+		__disable_irq();
+		HAL_SuspendTick();
+		/* Enter STOP 2 mode */
+    HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+		 /* ... STOP 2 mode ... */    
+
+    /* Re-configure the system clock to 80 MHz based on MSI, enable and
+       select PLL as system clock source (PLL is disabled in STOP mode) */
+
+		HAL_ResumeTick();
+		SYSCLKConfig_STOP();
+		__enable_irq();
+		
+		power_3V3_ctr();
+		power_i2c_ctr();
+		power_232_ctr();
+		
+		
+//		HAL_Delay(100);
+		HAL_UART_DeInit(&huart1);
+		MX_USART1_UART_Init();
+		HAL_GPIO_WritePin(GPIOE,PE2_232_POWER_Pin|PE9_3V3_Pin|PE14_IIC_Power_Pin, GPIO_PIN_SET);
+		printf("退出Stop mode 2\r\n");
+//		MX_I2C1_Init();
   }
   /* USER CODE END 3 */
+	
 }
 
 /**
@@ -130,17 +201,15 @@ void SystemClock_Config(void)
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Configure LSE Drive Capability 
-  */
-  HAL_PWR_EnableBkUpAccess();
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
+//  */
+//  HAL_PWR_EnableBkUpAccess();
+//  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_LSE
-                              |RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+//  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
+  RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
@@ -166,25 +235,22 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1;
-                              
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
-//  PeriphClkInit.Lptim1ClockSelection = RCC_LPTIM1CLKSOURCE_LSI;
-//  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure the main internal regulator output voltage 
-  */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Enable MSI Auto calibration 
-  */
-  HAL_RCCEx_EnableMSIPLLMode();
+//  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1;
+//  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;   // RCC_USART1CLKSOURCE_PCLK2
+//  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+//  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//  /** Configure the main internal regulator output voltage 
+//  */
+//  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//  /** Enable MSI Auto calibration 
+//  */
+//  HAL_RCCEx_EnableMSIPLLMode();
 }
 
 /**
@@ -242,7 +308,11 @@ static void MX_USART1_UART_Init(void)
 {
 
   /* USER CODE BEGIN USART1_Init 0 */
-
+	RCC_PeriphCLKInitTypeDef RCC_PeriphClkInit;
+	/* 配置串口1时钟源*/
+	RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+	RCC_PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;
+	HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit);
   /* USER CODE END USART1_Init 0 */
 
   /* USER CODE BEGIN USART1_Init 1 */
@@ -263,7 +333,7 @@ static void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
-
+	 __HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE); 
   /* USER CODE END USART1_Init 2 */
 
 }
@@ -297,8 +367,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, PB0_Relay_Pin|PB1_485_POWER_Pin|LORA_Power_Pin|NB_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PE2_232_POWER_Pin Status_Pin PE7_12VC_Pin PE8_5VC_Pin 
-                           PE9_3V3_Pin PE10_5V_ADC_Pin PE12_GPS_POWER_Pin Lora_RST_Pin 
-                           PE14_IIC_Power_Pin PE15_TF_Power_Pin */
+                          PE9_3V3_Pin PE10_5V_ADC_Pin PE12_GPS_POWER_Pin Lora_RST_Pin 
+                          PE14_IIC_Power_Pin PE15_TF_Power_Pin */
   GPIO_InitStruct.Pin = PE2_232_POWER_Pin|Status_Pin|PE7_12VC_Pin|PE8_5VC_Pin 
                           |PE9_3V3_Pin|PE10_5V_ADC_Pin|PE12_GPS_POWER_Pin|Lora_RST_Pin 
                           |PE14_IIC_Power_Pin|PE15_TF_Power_Pin;
@@ -308,10 +378,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC2 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+//  GPIO_InitStruct.Pin = GPIO_PIN_2;
+//  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+//  GPIO_InitStruct.Pull = GPIO_NOPULL;
+//  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC3_RS485_DE_Pin */
   GPIO_InitStruct.Pin = PC3_RS485_DE_Pin;
@@ -326,6 +396,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PE11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF1_TIM1;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB10 PB11 */
   GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
@@ -356,6 +434,38 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void SYSCLKConfig_STOP(void)
+{
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  uint32_t pFLatency = 0;
+
+  /* Enable Power Control clock */
+  __HAL_RCC_PWR_CLK_ENABLE();      //RCC_APB1ENR->PWREN :Power interface clock enble
+
+  /* Get the Oscillators configuration according to the internal RCC registers */
+  HAL_RCC_GetOscConfig(&RCC_OscInitStruct);
+
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_NONE;   /*!< Oscillator configuration unchanged */
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Get the Clocks configuration according to the internal RCC registers */
+  HAL_RCC_GetClockConfig(&RCC_ClkInitStruct, &pFLatency);
+
+  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
+     clocks dividers */
+  RCC_ClkInitStruct.ClockType     = RCC_CLOCKTYPE_SYSCLK;
+  RCC_ClkInitStruct.SYSCLKSource  = RCC_SYSCLKSOURCE_PLLCLK;
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, pFLatency) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
 ///重定向c库函数printf到串口DEBUG_USART，重定向后可使用printf函数
 int fputc(int ch, FILE *f)
 {
@@ -380,7 +490,79 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   {
     int1_flag = 1;
   }
+	if (GPIO_Pin == GPIO_PIN_2)
+  {
+    /* Reconfigure LED2 */
+    BSP_LED_Init(); 
+    /* Switch on LED2 */
+    HAL_GPIO_WritePin(GPIOE, Status_Pin, GPIO_PIN_SET);
+  }
 }
+/*外部中断线2*/
+static void exti2_config(void)
+{ 
+  
+  GPIO_InitTypeDef GPIO_InitStruct;
+  __HAL_RCC_GPIOC_CLK_ENABLE(); 
+  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;//下降沿
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_NVIC_SetPriority(EXTI2_IRQn,3,0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+}
+
+void BSP_LED_Init(void)
+{
+  GPIO_InitTypeDef  GPIO_InitStruct = {0};
+
+  /* Enable the GPIO_LED Clock */
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+
+  /* Configure the GPIO_LED pin */
+  GPIO_InitStruct.Pin   = Status_Pin;
+  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull  = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+}
+void power_3V3_ctr(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+ /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+	GPIO_InitStruct.Pin = PE9_3V3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+	
+}
+void power_i2c_ctr(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+ /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+	GPIO_InitStruct.Pin = PE14_IIC_Power_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+	
+}
+void power_232_ctr(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+ /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+	GPIO_InitStruct.Pin = PE2_232_POWER_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+	
+}
+
 /* USER CODE END 4 */
 
 /**

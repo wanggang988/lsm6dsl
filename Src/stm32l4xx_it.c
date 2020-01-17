@@ -29,6 +29,7 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
 extern uint8_t int1_flag;
+uint32_t ncount;
 /* USER CODE END TD */
 
 /* Private define ------------------------------------------------------------*/
@@ -202,6 +203,17 @@ void SysTick_Handler(void)
 void EXTI15_10_IRQHandler(void)
 {
 		HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11);
+}
+void EXTI2_IRQHandler(void)
+{
+  
+//  if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_2) != RESET)
+//  {
+//      ncount++;
+////      printf("the ncount value is %d \r\n",ncount);
+//      __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
+//  } 
+		HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
 }
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -27,13 +27,8 @@ lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ramfunc.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c_ex.h
-lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_lptim.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h
-lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc.h
-lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc_ex.h
-lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h
-lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h
 lsm6dsl\sensor.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h
 lsm6dsl\sensor.o: ..\Bsp\lsm6dsl_reg.h

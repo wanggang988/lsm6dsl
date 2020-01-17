@@ -49,7 +49,7 @@ static float temperature_degC;
 static uint8_t whoamI, rst;
 static uint8_t tx_buffer[TX_BUF_DIM];
 
-static char data_out[MAX_BUF_SIZE];
+char data_out[MAX_BUF_SIZE];
 uint8_t int1_flag = 0;
 stmdev_ctx_t dev_ctx;
 /* Extern variables ----------------------------------------------------------*/
@@ -158,9 +158,10 @@ void example_main(void)
   /*
    * Read samples in polling mode (no int)
    */
-  while(1)
+//  while(1)
+	for(uint8_t i = 0;i < 2; i++) //循环5次
   {
-		HAL_Delay(1000 * 10);
+		HAL_Delay(1000 * 3);
     /*
      * Read output only if new value is available
      */
@@ -234,12 +235,12 @@ void lsm6dsl_free_fall_detection(void)
    *  Enable Block Data Update
    */
   lsm6dsl_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
-//  lsm6dsl_xl_power_mode_set(&dev_ctx,LSM6DSL_XL_NORMAL);			//设置功耗模式：XL_HM_MODE = 1 :high-performance operating mode disabled.
-	 lsm6dsl_xl_power_mode_set(&dev_ctx,LSM6DSL_XL_HIGH_PERFORMANCE);	
+  lsm6dsl_xl_power_mode_set(&dev_ctx,LSM6DSL_XL_NORMAL);			//设置功耗模式：XL_HM_MODE = 1 :high-performance operating mode disabled.
+//	 lsm6dsl_xl_power_mode_set(&dev_ctx,LSM6DSL_XL_HIGH_PERFORMANCE);	
 	/*
    * Set Output Data Rate
    */
-  lsm6dsl_xl_data_rate_set(&dev_ctx, LSM6DSL_XL_ODR_416Hz);   //LSM6DSL_XL_ODR_416Hz
+  lsm6dsl_xl_data_rate_set(&dev_ctx, LSM6DSL_XL_ODR_52Hz);   //   LSM6DSL_XL_ODR_52Hz :low power mode
   /*
    * Set full scale
    */  
@@ -249,7 +250,7 @@ void lsm6dsl_free_fall_detection(void)
   lsm6dsl_wkup_dur_set(&dev_ctx,0);
 //  lsm6dsl_timestamp_res_set(&dev_ctx,LSM6DSL_LSB_6ms4);
 //  lsm6dsl_act_sleep_dur_set(&dev_ctx,0);
-  lsm6dsl_ff_dur_set(&dev_ctx,6);  //80ms
+  lsm6dsl_ff_dur_set(&dev_ctx,1);  // 1/52 
   lsm6dsl_ff_threshold_set(&dev_ctx,LSM6DSL_FF_TSH_312mg);  //LSM6DSL_FF_TSH_312mg
   /*
    * 中断
@@ -257,21 +258,34 @@ void lsm6dsl_free_fall_detection(void)
   lsm6dsl_int1_route_t lsm6dsl_int1_route;
   lsm6dsl_int1_route.int1_ff = 1;
   lsm6dsl_pin_int1_route_set(&dev_ctx,lsm6dsl_int1_route);
-  lsm6dsl_all_sources_t lsm6dsl_all_sources;
-  while(1)
-  {
-    if(int1_flag == 1)
-    {
-      int1_flag = 0;
-      lsm6dsl_all_sources_get(&dev_ctx,&lsm6dsl_all_sources);
-      if(lsm6dsl_all_sources.wake_up_src.ff_ia == 1)
-      {
-        
-        snprintf(data_out, MAX_BUF_SIZE, "Free fall indication.\r\n");
-        tx_com((uint8_t*)data_out, strlen(data_out));
-      }
-    }
-  }
+//  lsm6dsl_all_sources_t lsm6dsl_all_sources;
+//  while(1)
+//  {
+//    if(int1_flag == 1)
+//    {
+//      int1_flag = 0;
+//      lsm6dsl_all_sources_get(&dev_ctx,&lsm6dsl_all_sources);
+//      if(lsm6dsl_all_sources.wake_up_src.ff_ia == 1)
+//      {
+//        
+//        snprintf(data_out, MAX_BUF_SIZE, "Free fall indication.\r\n");
+//        tx_com((uint8_t*)data_out, strlen(data_out));
+//				
+////				memset(data_raw_acceleration.u8bit, 0x00, 3*sizeof(int16_t));
+////				lsm6dsl_acceleration_raw_get(&dev_ctx, data_raw_acceleration.u8bit);
+////				acceleration_mg[0] = lsm6dsl_from_fs2g_to_mg( data_raw_acceleration.i16bit[0]);
+////				acceleration_mg[1] = lsm6dsl_from_fs2g_to_mg( data_raw_acceleration.i16bit[1]);
+////				acceleration_mg[2] = lsm6dsl_from_fs2g_to_mg( data_raw_acceleration.i16bit[2]);
+////			 
+////				sprintf((char*)tx_buffer, "Acceleration [mg]:%4.2f\t%4.2f\t%4.2f\r\n",
+////								acceleration_mg[0], acceleration_mg[1], acceleration_mg[2]);
+////				tx_com( tx_buffer, strlen( (char const*)tx_buffer ) );
+//				
+//				
+//      }
+//			
+//    }
+//  }
 }
 
 void lsm6dsl_exti_config(void)

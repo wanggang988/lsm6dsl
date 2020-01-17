@@ -28,15 +28,11 @@ lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ramfunc.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c_ex.h
-lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_lptim.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h
-lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc.h
-lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc_ex.h
-lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h
-lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h
 lsm6dsl\main.o: ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h
+lsm6dsl\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+lsm6dsl\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 lsm6dsl\main.o: ..\Bsp\lsm6dsl_reg.h
 lsm6dsl\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
-lsm6dsl\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
